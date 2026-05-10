@@ -1,5 +1,32 @@
 // /api/storage.js
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
+
+let redisClient = null;
+
+async function getRedisClient() {
+    if (!redisClient) {
+        try {
+            redisClient = createClient({
+                url: 'redis://default:PgAKgtn1CjI9ilcYkPGmDBHB6Drkc0nN@redis-15926.c239.us-east-1-2.ec2.cloud.redislabs.com:15926'
+            });
+
+            redisClient.on('error', (err) => {
+                console.error('Redis Client Error:', err);
+                redisClient = null;
+            });
+
+            redisClient.on('connect', () => {
+                console.log('Connected to Redis');
+            });
+
+            await redisClient.connect();
+        } catch (error) {
+            console.error('Failed to connect to Redis:', error);
+            redisClient = null;
+        }
+    }
+    return redisClient;
+}
 
 export default async function handler(req, res) {
     // Разрешаем запросы с любых устройств (CORS)
@@ -18,13 +45,20 @@ export default async function handler(req, res) {
     }
 
     try {
+        const client = await getRedisClient();
+        if (!client) {
+            throw new Error('Redis connection failed');
+        }
+
         if (req.method === 'GET') {
-            const data = await kv.get(key);
-            return res.status(200).json(data);
+            const data = await client.get(key);
+            // Redis хранит строки, парсим JSON
+            return res.status(200).json(data ? JSON.parse(data) : null);
         }
 
         if (req.method === 'POST') {
-            await kv.set(key, JSON.stringify(req.body));
+            // Сохраняем как JSON-строку
+            await client.set(key, JSON.stringify(req.body));
             return res.status(200).json({ success: true });
         }
 
