@@ -8,7 +8,7 @@ import { initDragSystem } from './modules/drag.js';
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Load Data
-  loadData();
+  await loadData();
 
   // 2. Restore active timers (for safety)
   restoreActiveTimers();
